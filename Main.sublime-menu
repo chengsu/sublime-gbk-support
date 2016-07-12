@@ -1,0 +1,23 @@
+[
+    {
+        "id": "file",
+        "children":
+        [
+            {
+                "caption": "GBK or UTF8",
+                "id": "extra_encoding",
+                "children":
+                [
+                    {
+                        "caption": "Save with GBK",
+                        "command": "save_with_gbk"
+                    },
+                    {
+                        "caption": "Save with UTF8",
+                        "command": "save_with_utf8"
+                    }
+                ]
+            }
+        ]
+    }
+]
