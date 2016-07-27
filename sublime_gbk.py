@@ -8,88 +8,86 @@ def gbk2utf8(view):
         reg_all = sublime.Region(0, view.size())
         gbk = view.substr(reg_all).encode('gbk')
     except:
-        try:
-            gbk=open(view.file_name()+'.bkup','r',encoding='gbk').read()
-        except:
-            gbk=open(view.file_name(),'r',encoding='gbk').read()
+        gbk = open(view.file_name(), 'r', encoding='GBK').read()
+        text = gbk
 
-        f=open(view.file_name(),'w',encoding='utf_8')
-        f.write(gbk)
-        f.close()
+        tmp_file = u"%s.dump"%view.file_name()
+        ver = int(sublime.version())
 
-        f=open(view.file_name()+'.bkup','w',encoding='gbk')
-        f.write(gbk)
-        f.close()
+        if ver >= 3000:
+            f = open(tmp_file, 'w', encoding='utf-8')
+            f.write(text)
+            f.close()
+        else:
+            f = open(tmp_file, 'w')
+            f.write(text.encode('utf8'))
+            f.close()
 
-        view.set_status('gbk','GBK')
+        window = sublime.active_window()
+        
+        tmp_view = window.open_file(tmp_file)
+
+        if not tmp_view:
+            tmp_view = window.open_file(tmp_file)
+        
+        tmp_view.set_syntax_file(view.settings().get('syntax'))
+        window.focus_view(view)
+        window.run_command('close')
+        window.focus_view(tmp_view)
         sublime.status_message('gbk encoding detected, open with utf8.')
 
-def utf82gbk(view):
-    if view.get_status('gbk'):
-        reg_all = sublime.Region(0, view.size())
-        gbk = view.substr(reg_all)
-
-        f=open(view.file_name(),'w',encoding='gbk')
-        f.write(gbk)
-        f.close()
-
-        try:
-            os.remove(view.file_name()+'.bkup')
-        except:
-            pass
-
-def onsave(view):
-    if view.get_status('gbk'):
-        reg_all = sublime.Region(0, view.size())
-        gbk = view.substr(reg_all)
-
-        f=open(view.file_name()+'.bkup','w',encoding='gbk')
-        f.write(gbk)
-        f.close()
+def saveWithEncoding(view, file_name = None, encoding = 'gbk'):
+    if not file_name:
+        file_name = view.file_name()
+    reg_all = sublime.Region(0, view.size())
+    text = view.substr(reg_all).encode(encoding)
+    gbk = open(file_name, 'wb')
+    gbk.write(text)
+    gbk.close()
 
 class EventListener(sublime_plugin.EventListener):
     def on_load(self, view):
-        if view.file_name()[-5:]=='.bkup':
-            view.close()
-        else:
-            gbk2utf8(view)
+        gbk2utf8(view)
 
     def on_post_save(self, view):
-        onsave(view)
+        if ".dump" in view.file_name():
+            file_name = view.file_name()[:-5]
+            saveWithEncoding(view, file_name)
 
     def on_close(self,view):
-        utf82gbk(view)
+        if ".dump" in view.file_name():
+            os.remove(view.file_name())
+
 
 class SaveWithGbkCommand(sublime_plugin.TextCommand):
     def __init__(self, view):
         self.view = view
     def run(self, edit):
-        view=self.view
-        view.run_command('save')
-        view.set_status('gbk','GBK')
+        file_name = self.view.file_name()
 
-        reg_all = sublime.Region(0, view.size())
-        gbk = view.substr(reg_all)
+        if(not file_name):
+            return
 
-        f=open(view.file_name()+'.bkup','w',encoding='gbk')
-        f.write(gbk)
-        f.close()
-
-        sublime.status_message('saved with gbk.')
+        if ".dump" not in self.view.file_name():
+            saveWithEncoding(self.view)
+            sublime.active_window().run_command('close')
+            sublime.active_window().open_file(self.view.file_name())
+        else:
+            sublime.active_window().run_command('save')
 
 class SaveWithUtf8Command(sublime_plugin.TextCommand):
     def __init__(self, view):
         self.view = view
     def run(self, edit):
-        view=self.view
-        view.run_command('save')
-        view.set_status('gbk','')
+        file_name = self.view.file_name()
 
-        sublime.status_message('saved with utf8.')
+        if(not file_name):
+            return
 
-        try:
-            os.remove(view.file_name()+'.bkup')
-        except:
-            pass
-
-
+        if ".dump" in self.view.file_name():
+            file_name = self.view.file_name()[:-5]
+            saveWithEncoding(self.view, file_name, 'utf-8')
+            sublime.active_window().run_command('close')
+            sublime.active_window().open_file(file_name)
+        else:
+            sublime.active_window().run_command('save')
